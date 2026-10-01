@@ -1,0 +1,38 @@
+[package]
+name = "ff-client"
+version = "0.2.0"
+edition = "2021"
+description = "Rust client for ForexFactory's calendar-event history endpoint, built on rustopus + wreq."
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+rustopus = { git = "https://github.com/nimanoori22/rustopus" }
+
+# Used only to BUILD requests (so rustopus's retry-cloning and rate limiting
+# keep working exactly as they do for your other wrapper crates — see
+# src/transport.rs). The actual network call goes out through wreq, not this.
+# Version pinned to match what rustopus itself depends on (0.13, rustls) —
+# same "keep the reqwest copies aligned" concern its own docs call out.
+# rustls-tls is enabled even though this Client never actually connects
+# (WreqTransport intercepts every request before it would), because
+# `Client::builder().build()` sets up a connector eagerly and errors out
+# with zero TLS backend registered at all.
+
+# TLS/JA3/JA4 fingerprint impersonation. This is the actual reason for this
+# rewrite: ForexFactory's endpoint sits behind bot detection that fingerprints
+# the TLS handshake itself, which plain reqwest (rustls/native-tls) can't
+# fake — only something built on real BoringSSL like wreq can.
+wreq = { version = "0.16.1", features = ["socks"] }
+wreq-util = "0.2.0"
+
+# Parses the HTML fragment ForexFactory returns in the `history` JSON field.
+scraper = "0.20"
+
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+url = "2"
+
+[dev-dependencies]
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+dotenvy = "0.15.7"
