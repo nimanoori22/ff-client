@@ -15,6 +15,7 @@
 //! </tr>
 //! ```
 
+use chrono::NaiveDate;
 use scraper::{ElementRef, Html, Selector};
 use serde::{Deserialize, Serialize};
 
@@ -30,6 +31,30 @@ pub struct HistoryPage {
     pub has_more: bool,
     /// Raw HTML fragment — parse with [`parse_history_html`].
     pub history: String,
+}
+
+/// The result of walking ForexFactory's cumulative history pages.
+///
+/// Inspect [`Self::is_complete`] before treating `entries` as a complete
+/// history. ForexFactory can cap the server-side history window (`maxed`),
+/// and callers can set an iteration ceiling that stops while `has_more` is
+/// still true.
+#[derive(Debug, Clone)]
+pub struct HistoryFetch {
+    pub entries: Vec<HistoryEntry>,
+    /// The final `i` page requested from ForexFactory.
+    pub iterations: u32,
+    /// Whether ForexFactory reported that a later page may contain more data.
+    pub has_more: bool,
+    /// Whether ForexFactory reported a server-side history cap.
+    pub maxed: bool,
+}
+
+impl HistoryFetch {
+    /// True only when neither the client nor ForexFactory reported a cap.
+    pub fn is_complete(&self) -> bool {
+        !self.has_more && !self.maxed
+    }
 }
 
 /// How ForexFactory colors the "impact" icon for a release.
@@ -91,6 +116,9 @@ impl ActualComparison {
 pub struct HistoryEntry {
     /// ForexFactory's own display label, e.g. `"Sep 1, 2026"`.
     pub date: String,
+    /// The release date parsed from [`Self::date`], when it matches
+    /// ForexFactory's current `"Sep 1, 2026"` display format.
+    pub release_date: Option<NaiveDate>,
     /// The `day=` query value from the row's link, e.g. `"sep1.2026"` —
     /// this is ForexFactory's own slug for the calendar day, useful if you
     /// want to link back to `/calendar?day=...`.
@@ -123,6 +151,10 @@ fn parse_numeric(text: &str) -> Option<f64> {
     } else {
         trimmed.parse().ok()
     }
+}
+
+fn parse_release_date(text: &str) -> Option<NaiveDate> {
+    NaiveDate::parse_from_str(text.trim(), "%b %-d, %Y").ok()
 }
 
 fn text_of(el: ElementRef) -> String {
@@ -202,6 +234,7 @@ pub fn parse_history_html(html: &str) -> Vec<HistoryEntry> {
                 .unwrap_or_default();
 
             HistoryEntry {
+                release_date: parse_release_date(&date),
                 date,
                 day_slug,
                 release_id,
@@ -216,4 +249,23 @@ pub fn parse_history_html(html: &str) -> Vec<HistoryEntry> {
             }
         })
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::parse_release_date;
+    use chrono::NaiveDate;
+
+    #[test]
+    fn parses_forexfactory_display_dates() {
+        assert_eq!(
+            parse_release_date("Sep 1, 2026"),
+            NaiveDate::from_ymd_opt(2026, 9, 1)
+        );
+    }
+
+    #[test]
+    fn rejects_unrecognized_display_dates() {
+        assert_eq!(parse_release_date("not a date"), None);
+    }
 }

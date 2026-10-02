@@ -35,9 +35,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let client = ForexFactoryClient::with_clients(http, wreq_client, config);
 
     let history = client.history_full(252, 20).await?;
-    println!("{} points total", history.len());
+    println!("{} points total", history.entries.len());
+    if !history.is_complete() {
+        eprintln!(
+            "history is incomplete: iterations={}, has_more={}, maxed={}",
+            history.iterations, history.has_more, history.maxed
+        );
+    }
 
-    for entry in history.iter().take(5) {
+    for entry in history.entries.iter().take(5) {
         println!(
             "{:<12} actual={:>7} forecast={:>7} previous={:>7} impact={:?} vs_forecast={:?}",
             entry.date,

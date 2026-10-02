@@ -7,7 +7,7 @@ use url::Url;
 use wreq_util::Profile;
 
 use crate::error::FfClientError;
-use crate::history::{parse_history_html, HistoryEntry, HistoryPage};
+use crate::history::{parse_history_html, HistoryFetch, HistoryPage};
 use crate::policy::FfPolicy;
 use crate::transport::WreqTransport;
 
@@ -158,14 +158,16 @@ impl ForexFactoryClient {
     /// Pages through `i = 1, 2, 3, ...` until ForexFactory reports
     /// `has_more: false` or `maxed: true` (or `max_iterations` is hit as a
     /// hard ceiling against an unexpected infinite loop), then parses the
-    /// final — and by then complete — page's HTML table.
+    /// final page's HTML table.
     ///
-    /// `max_iterations` must be at least one.
+    /// `max_iterations` must be at least one. Check
+    /// [`HistoryFetch::is_complete`] before treating the returned entries as
+    /// a complete history.
     pub async fn history_full(
         &self,
         ebase_event_id: u64,
         max_iterations: u32,
-    ) -> Result<Vec<HistoryEntry>, FfClientError> {
+    ) -> Result<HistoryFetch, FfClientError> {
         if max_iterations == 0 {
             return Err(FfClientError::InvalidMaxIterations);
         }
@@ -178,7 +180,12 @@ impl ForexFactoryClient {
             page = self.history_page(ebase_event_id, i).await?;
         }
 
-        Ok(parse_history_html(&page.history))
+        Ok(HistoryFetch {
+            entries: parse_history_html(&page.history),
+            iterations: i,
+            has_more: page.has_more,
+            maxed: page.maxed,
+        })
     }
 }
 

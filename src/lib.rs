@@ -14,7 +14,7 @@
 //! # async fn go() -> Result<(), ff_client::FfClientError> {
 //! let client = ff_client::ForexFactoryClient::new(ff_client::FfClientConfig::default())?;
 //! let pmi = client.history_full(252, 20).await?;
-//! println!("{} points, most recent: {}", pmi.len(), pmi[0].date);
+//! println!("{} points, most recent: {}", pmi.entries.len(), pmi.entries[0].date);
 //! # Ok(())
 //! # }
 //! ```
@@ -27,7 +27,7 @@ pub mod transport;
 
 pub use client::{FfClientConfig, ForexFactoryClient};
 pub use error::{ArmError, FfClientError};
-pub use history::{ActualComparison, HistoryEntry, HistoryPage, Impact};
+pub use history::{ActualComparison, HistoryEntry, HistoryFetch, HistoryPage, Impact};
 pub use policy::{FfHttpError, FfPolicy, FfPolicyError};
 pub use transport::WreqTransport;
 

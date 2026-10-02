@@ -1,3 +1,4 @@
+use chrono::NaiveDate;
 use ff_client::history::{parse_history_html, ActualComparison, Impact};
 
 const SAMPLE: &str = r#"
@@ -55,6 +56,7 @@ fn parses_real_captured_rows() {
 
     let first = &entries[0];
     assert_eq!(first.date, "Sep 1, 2026");
+    assert_eq!(first.release_date, NaiveDate::from_ymd_opt(2026, 9, 1));
     assert_eq!(first.day_slug.as_deref(), Some("sep1.2026"));
     assert_eq!(first.release_id, Some(146583));
     assert_eq!(first.impact, Impact::High);
